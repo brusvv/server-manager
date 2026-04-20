@@ -1,11 +1,11 @@
 #!/bin/bash
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║  SERVER-MANAGER — VPN Server Management                         ║
-# ║  https://github.com/stump3/server-manager                       ║
+# ║  https://github.com/brusvv/server-manager                       ║
 # ╚══════════════════════════════════════════════════════════════════╝
 #
 # Использование:
-#   curl -fsSL https://raw.githubusercontent.com/stump3/server-manager/main/server-manager.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/brusvv/server-manager/main/server-manager.sh | bash
 #
 #   При первом запуске автоматически клонирует репозиторий в /root/server-manager/
 #   и перезапускается оттуда. Повторный запуск: server-manager
@@ -31,8 +31,8 @@ if [ -f "$_SOURCE_PATH" ]; then
     fi
 fi
 export SCRIPT_DIR
-REPO_RAW="https://raw.githubusercontent.com/stump3/server-manager/main"
-REPO_URL="https://github.com/stump3/server-manager"
+REPO_RAW="https://raw.githubusercontent.com/brusvv/server-manager/main"
+REPO_URL="https://github.com/brusvv/server-manager"
 INSTALL_DIR="/root/server-manager"
 
 # При запуске через curl | bash — SCRIPT_DIR обычно пустой.
