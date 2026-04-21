@@ -147,11 +147,11 @@ hysteria_install() {
         l8443=$(hy_port_label 8443); l2053=$(hy_port_label 2053)
         l2083=$(hy_port_label 2083); l2087=$(hy_port_label 2087)
         echo "  ┌──────────────────────────────────────────────────────────┐"
-        printf "  │  1) 8443  — рекомендуется  [%-26s]  │\n" "$l8443"
-        printf "  │  2) 2053  — альтернатива   [%-26s]  │\n" "$l2053"
-        printf "  │  3) 2083  — альтернатива   [%-26s]  │\n" "$l2083"
-        printf "  │  4) 2087  — альтернатива   [%-26s]  │\n" "$l2087"
-        echo "  │  5) Ввести свой порт                                     │"
+        printf "  │  %-56s │\n" "1) 8443  — рекомендуется  [$l8443]"
+        printf "  │  %-56s │\n" "2) 2053  — альтернатива   [$l2053]"
+        printf "  │  %-56s │\n" "3) 2083  — альтернатива   [$l2083]"
+        printf "  │  %-56s │\n" "4) 2087  — альтернатива   [$l2087]"
+        printf "  │  %-56s │\n" "5) Ввести свой порт"
         echo "  └──────────────────────────────────────────────────────────┘"
         local port_choice=""
         while [[ ! "$port_choice" =~ ^[12345]$ ]]; do
@@ -214,26 +214,28 @@ hysteria_install() {
         ok "Бинарник Hysteria2 установлен"
     fi
 
-    local _config_created=false
-    local _rebuild_config=false
-    local _existing_domain=""
-    _existing_domain="$(hy_get_domain)"
-    if [ ! -f "$HYSTERIA_CONFIG" ]; then
-        _rebuild_config=true
-    elif [ -z "$_existing_domain" ] || [[ "$_existing_domain" =~ $_placeholder_re ]]; then
-        # get.hy2.sh может оставить шаблонный config.yaml (your.domain.net).
-        # В этом случае перезаписываем конфиг значениями, которые ввёл пользователь.
-        _rebuild_config=true
-        warn "Обнаружен шаблонный/пустой домен в текущем config.yaml: ${_existing_domain:-<empty>}"
-        info "Конфиг будет обновлён доменом: ${domain}"
+    # ── Бинарник (устанавливаем только если не установлен) ────────
+    if ! hy_is_installed; then
+        info "Установка бинарника Hysteria2..."
+        local _hy_script; _hy_script=$(mktemp /tmp/hy2-install.XXXXXX.sh)
+        if ! curl -fsSL --max-time 30 https://get.hy2.sh/ -o "$_hy_script" 2>/dev/null; then
+            rm -f "$_hy_script"; err "Не удалось скачать установщик Hysteria2"; return 1
+        fi
+        [ -s "$_hy_script" ] || { rm -f "$_hy_script"; err "Установщик Hysteria2 пустой"; return 1; }
+        local _rc=0; bash "$_hy_script" || _rc=$?; rm -f "$_hy_script"
+        [ $_rc -ne 0 ] && { err "Ошибка установки Hysteria2"; return 1; }
+        ok "Бинарник Hysteria2 установлен"
     fi
 
-    if $_rebuild_config; then
-        info "Создание базового конфига Hysteria2..."
-        local _acme_email_line=""
-        [ -n "$email" ] && _acme_email_line="  email: ${email}"
-        mkdir -p "$(dirname "$HYSTERIA_CONFIG")"
-        cat > "$HYSTERIA_CONFIG" <<EOF
+    # ── Конфиг ────────────────────────────────────────────────────
+    # К этой точке «переустановка с сохранением» уже вышла через return 0,
+    # поэтому конфиг всегда пишем заново с параметрами пользователя.
+    # get.hy2.sh создаёт шаблонный your.domain.net — перезаписываем его.
+    info "Создание конфига Hysteria2..."
+    local _acme_email_line=""
+    [ -n "$email" ] && _acme_email_line="  email: ${email}"
+    mkdir -p "$(dirname "$HYSTERIA_CONFIG")"
+    cat > "$HYSTERIA_CONFIG" <<EOF
 listen: ${listen_addr}
 
 acme:
@@ -248,15 +250,13 @@ auth:
   userpass:
     ${username}: "${new_pass}"
 EOF
-        chmod 644 "$HYSTERIA_CONFIG"
-        _config_created=true
-    fi
+    chmod 644 "$HYSTERIA_CONFIG"
 
     local _users_db="/var/lib/hy-webhook/users.json"
     local _is_http_auth=false
     grep -q "type: http" "$HYSTERIA_CONFIG" 2>/dev/null && _is_http_auth=true
 
-    if $_config_created; then
+    if true; then
         systemctl enable "$HYSTERIA_SVC" 2>/dev/null || true
         systemctl restart "$HYSTERIA_SVC" 2>/dev/null || true
         ok "Пользователь '${username}' добавлен"
